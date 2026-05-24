@@ -190,12 +190,3 @@ def get_notices():
         'content': n.content, 'is_pinned': n.is_pinned,
         'created_at': n.created_at.isoformat()
     } for n in notices])
-# 임시 admin 승격 API (배포 후 삭제 예정)
-@main.route('/api/temp/make-admin/<username>', methods=['GET'])
-def make_admin(username):
-    user = User.query.filter_by(username=username).first()
-    if not user:
-        return jsonify({'error': '사용자 없음'}), 404
-    user.role = 'admin'
-    db.session.commit()
-    return jsonify({'message': f'{username} → admin 승격 완료!'})
