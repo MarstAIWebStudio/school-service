@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>로그인</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🏫 학교 서비스</h1>
+            
+            <div id="login-form">
+                <h2>로그인</h2>
+                <input type="text" id="username" placeholder="이름" />
+                <input type="password" id="password" placeholder="비밀번호" />
+                <button onclick="login()">로그인</button>
+                <p>계정이 없으신가요? <a href="#" onclick="showRegister()">회원가입</a></p>
+            </div>
+
+            <div id="register-form" style="display:none">
+                <h2>회원가입</h2>
+                <input type="text" id="reg-username" placeholder="이름" />
+                <input type="password" id="reg-password" placeholder="비밀번호" />
+                <input type="email" id="reg-email" placeholder="이메일 (선택)" />
+                <button onclick="register()">회원가입</button>
+                <p>이미 계정이 있으신가요? <a href="#" onclick="showLogin()">로그인</a></p>
+            </div>
+
+            <p id="message" style="color:red"></p>
+        </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        // 이미 로그인 되어있으면 리다이렉트
+        if (Auth.isLoggedIn()) {
+            const user = Auth.getUser();
+            window.location.href = user.role === 'admin' ? 'admin.html' : 'index.html';
+        }
+
+        function showRegister() {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('register-form').style.display = 'block';
+        }
+
+        function showLogin() {
+            document.getElementById('register-form').style.display = 'none';
+            document.getElementById('login-form').style.display = 'block';
+        }
+
+        async function login() {
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            try {
+                const data = await API.login(username, password);
+                window.location.href = data.role === 'admin' ? 'admin.html' : 'index.html';
+            } catch (e) {
+                document.getElementById('message').textContent = e.message;
+            }
+        }
+
+        async function register() {
+            const username = document.getElementById('reg-username').value;
+            const password = document.getElementById('reg-password').value;
+            const email = document.getElementById('reg-email').value;
+            try {
+                await API.register(username, password, email);
+                document.getElementById('message').style.color = 'green';
+                document.getElementById('message').textContent = '회원가입 완료! 로그인해주세요.';
+                showLogin();
+            } catch (e) {
+                document.getElementById('message').style.color = 'red';
+                document.getElementById('message').textContent = e.message;
+            }
+        }
+    </script>
+</body>
+</html>

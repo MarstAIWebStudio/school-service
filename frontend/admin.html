@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>관리자 페이지</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav>
+        <span>👑 관리자</span>
+        <button onclick="Auth.logout()">로그아웃</button>
+    </nav>
+
+    <div class="container">
+        <!-- 회원 관리 -->
+        <div class="card">
+            <h2>👥 회원 관리</h2>
+            <div id="users"></div>
+        </div>
+
+        <!-- 포인트 지급/차감 -->
+        <div class="card">
+            <h2>💰 포인트 지급/차감</h2>
+            <input type="number" id="point-user-id" placeholder="회원 ID" />
+            <input type="number" id="point-amount" placeholder="금액 (음수: 차감)" />
+            <input type="text" id="point-reason" placeholder="사유 (필수)" />
+            <button onclick="adjustPoints()">적용</button>
+            <p id="point-message"></p>
+        </div>
+
+        <!-- 상품 관리 -->
+        <div class="card">
+            <h2>🛍️ 상품 관리</h2>
+            <input type="text" id="item-name" placeholder="상품명" />
+            <input type="text" id="item-desc" placeholder="설명" />
+            <input type="number" id="item-price" placeholder="가격 (포인트)" />
+            <input type="number" id="item-stock" placeholder="재고" />
+            <button onclick="addItem()">상품 추가</button>
+            <p id="item-message"></p>
+            <div id="items"></div>
+        </div>
+
+        <!-- 공지사항 -->
+        <div class="card">
+            <h2>📢 공지사항 등록</h2>
+            <input type="text" id="notice-title" placeholder="제목" />
+            <textarea id="notice-content" placeholder="내용"></textarea>
+            <label>
+                <input type="checkbox" id="notice-pinned"> 상단 고정
+            </label>
+            <button onclick="addNotice()">등록</button>
+            <p id="notice-message"></p>
+        </div>
+
+        <!-- 귓속말 링크 -->
+        <div class="card">
+            <h2>🔒 귓속말 링크</h2>
+            <input type="number" id="whisper-user-id" placeholder="학생 ID" />
+            <textarea id="whisper-message" placeholder="메시지"></textarea>
+            <button onclick="createWhisper()">링크 생성</button>
+            <p id="whisper-result"></p>
+        </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        // 로그인 체크
+        if (!Auth.isLoggedIn()) window.location.href = 'login.html';
+        const user = Auth.getUser();
+        if (user.role !== 'admin') window.location.href = 'index.html';
+
+        window.onload = async () => {
+            // 상품 목록
+            const items = await API.getItems();
+            document.getElementById('items').innerHTML = items.map(i => `
+                <div class="item">
+                    <strong>${i.name}</strong>
+                    <span>${i.price}P</span>
+                    <span>재고: ${i.stock}</span>
+                </div>
+            `).join('') || '<p>상품이 없습니다.</p>';
+        };
+
+        async function adjustPoints() {
+            const userId = document.getElementById('point-user-id').value;
+            const amount = parseInt(document.getElementById('point-amount').value);
+            const reason = document.getElementById('point-reason').value;
+            try {
+                const data = await API.adjustPoints(userId, amount, reason);
+                document.getElementById('point-message').style.color = 'green';
+                document.getElementById('point-message').textContent = 
+                    `완료! 새 잔액: ${data.new_balance}P`;
+            } catch (e) {
+                document.getElementById('point-message').style.color = 'red';
+                document.getElementById('point-message').textContent = e.message;
+            }
+        }
+
+        async function addItem() {
+            const name = document.getElementById('item-name').value;
+            const desc = document.getElementById('item-desc').value;
+            const price = parseInt(document.getElementById('item-price').value);
+            const stock = parseInt(document.getElementById('item-stock').value);
+            try {
+                await API.addItem(name, desc, price, stock);
+                document.getElementById('item-message').style.color = 'green';
+                document.getElementById('item-message').textContent = '상품 추가 완료!';
+            } catch (e) {
+                document.getElementById('item-message').style.color = 'red';
+                document.getElementById('item-message').textContent = e.message;
+            }
+        }
+
+        async function addNotice() {
+            const title = document.getElementById('notice-title').value;
+            const content = document.getElementById('notice-content').value;
+            const isPinned = document.getElementById('notice-pinned').checked;
+            try {
+                await API.addNotice(title, content, isPinned);
+                document.getElementById('notice-message').style.color = 'green';
+                document.getElementById('notice-message').textContent = '공지 등록 완료!';
+            } catch (e) {
+                document.getElementById('notice-message').style.color = 'red';
+                document.getElementById('notice-message').textContent = e.message;
+            }
+        }
+
+        async function createWhisper() {
+            const userId = document.getElementById('whisper-user-id').value;
+            const message = document.getElementById('whisper-message').value;
+            try {
+                const data = await API.createWhisper(userId, message);
+                document.getElementById('whisper-result').style.color = 'green';
+                document.getElementById('whisper-result').textContent = 
+                    `링크: https://your-id.github.io${data.url}`;
+            } catch (e) {
+                document.getElementById('whisper-result').style.color = 'red';
+                document.getElementById('whisper-result').textContent = e.message;
+            }
+        }
+    </script>
+</body>
+</html>

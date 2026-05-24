@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>학교 서비스</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav>
+        <span id="nav-username"></span>
+        <span id="nav-points"></span>
+        <button onclick="Auth.logout()">로그아웃</button>
+    </nav>
+
+    <div class="container">
+        <!-- 공지사항 -->
+        <div class="card">
+            <h2>📢 공지사항</h2>
+            <div id="notices"></div>
+        </div>
+
+        <!-- 포인트 현황 -->
+        <div class="card">
+            <h2>💰 내 포인트</h2>
+            <div id="point-balance" class="point-display"></div>
+            <h3>포인트 내역</h3>
+            <div id="point-logs"></div>
+        </div>
+
+        <!-- 상품 목록 -->
+        <div class="card">
+            <h2>🛍️ 상품 목록</h2>
+            <div id="items"></div>
+        </div>
+
+        <!-- 제작 요청 -->
+        <div class="card">
+            <h2>📝 제작 요청</h2>
+            <input type="text" id="req-title" placeholder="요청 제목" />
+            <textarea id="req-desc" placeholder="요청 내용"></textarea>
+            <button onclick="createRequest()">요청하기</button>
+            <p id="req-message"></p>
+        </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script>
+        // 로그인 체크
+        if (!Auth.isLoggedIn()) window.location.href = 'login.html';
+        const user = Auth.getUser();
+        if (user.role === 'admin') window.location.href = 'admin.html';
+
+        // 페이지 로드
+        window.onload = async () => {
+            document.getElementById('nav-username').textContent = `👤 ${user.username}`;
+
+            // 내 정보
+            const me = await API.me();
+            document.getElementById('nav-points').textContent = `💰 ${me.point_balance}P`;
+            document.getElementById('point-balance').textContent = `${me.point_balance} 포인트`;
+
+            // 공지사항
+            const notices = await API.getNotices();
+            document.getElementById('notices').innerHTML = notices.map(n => `
+                <div class="notice ${n.is_pinned ? 'pinned' : ''}">
+                    ${n.is_pinned ? '📌' : ''} <strong>${n.title}</strong>
+                    <p>${n.content}</p>
+                </div>
+            `).join('') || '<p>공지사항이 없습니다.</p>';
+
+            // 상품 목록
+            const items = await API.getItems();
+            document.getElementById('items').innerHTML = items.map(i => `
+                <div class="item">
+                    <strong>${i.name}</strong>
+                    <span>${i.price}P</span>
+                    <span>재고: ${i.stock}</span>
+                </div>
+            `).join('') || '<p>상품이 없습니다.</p>';
+        };
+
+        async function createRequest() {
+            const title = document.getElementById('req-title').value;
+            const desc = document.getElementById('req-desc').value;
+            try {
+                const data = await API.createRequest(title, desc);
+                document.getElementById('req-message').style.color = 'green';
+                document.getElementById('req-message').textContent = 
+                    `요청 완료! 고유번호: ${data.unique_code}`;
+            } catch (e) {
+                document.getElementById('req-message').style.color = 'red';
+                document.getElementById('req-message').textContent = e.message;
+            }
+        }
+    </script>
+</body>
+</html>
