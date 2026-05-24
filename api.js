@@ -76,5 +76,11 @@ const API = {
         apiCall('/api/admin/whisper', 'POST', { user_id: userId, message }),
 
     // 귓속말 읽기
-    readWhisper: (token) => apiCall(`/api/whisper/${token}`)
+    readWhisper: (token) => apiCall(`/api/whisper/${token}`),
+
+    // API 키 발급
+    generateApiKey: () => apiCall('/api/apikey/generate', 'POST'),
+
+    // API 키 조회
+    getApiKey: () => apiCall('/api/apikey'),
 };
