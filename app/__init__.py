@@ -19,7 +19,7 @@ def create_app():
 
     db.init_app(app)
     jwt.init_app(app)
-    CORS(app)  # 추가!
+    CORS(app)
 
     from app.routes import main
     app.register_blueprint(main)
@@ -27,5 +27,20 @@ def create_app():
     with app.app_context():
         from app import models
         db.create_all()
+
+        # 초기 admin 계정 자동 생성
+        from app.models import User
+        from werkzeug.security import generate_password_hash
+        admin = User.query.filter_by(username='admin').first()
+        if not admin:
+            admin = User(
+                username=os.getenv('ADMIN_USERNAME', 'admin'),
+                password_hash=generate_password_hash(os.getenv('ADMIN_PASSWORD', '1234')),
+                email=os.getenv('ADMIN_EMAIL', 'admin@school.kr'),
+                role='admin'
+            )
+            db.session.add(admin)
+            db.session.commit()
+            print('✅ 초기 admin 계정 생성 완료!')
 
     return app
