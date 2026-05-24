@@ -120,6 +120,38 @@ class AizamaApp {
         // 읽기
         read: async (token) => await this.#call(`/api/whisper/${token}`)
     };
+// DB
+    db = {
+        // 조회
+        get: async (collection) => {
+            const res = await fetch(`${AIZAMA_URL}/api/db/${collection}`, {
+                headers: { 'X-API-Key': this.apiKey }
+            });
+            return await res.json();
+        },
+
+        // 저장
+        set: async (collection, data) => {
+            const res = await fetch(`${AIZAMA_URL}/api/db/${collection}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': this.apiKey
+                },
+                body: JSON.stringify(data)
+            });
+            return await res.json();
+        },
+
+        // 삭제
+        delete: async (collection, id) => {
+            const res = await fetch(`${AIZAMA_URL}/api/db/${collection}/${id}`, {
+                method: 'DELETE',
+                headers: { 'X-API-Key': this.apiKey }
+            });
+            return await res.json();
+        }
+    };
 }
 
 // 초기화 함수

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIZAMA Console</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .console-nav {
+            background: #111;
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .console-nav h1 {
+            color: #00ff88;
+            font-size: 1.5rem;
+            margin: 0;
+        }
+        .api-key-box {
+            background: #1e1e1e;
+            color: #00ff88;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            word-break: break-all;
+        }
+        .tab-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .tab-btn {
+            background: #f0f2f5;
+            color: #333;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .tab-btn.active {
+            background: #4f46e5;
+            color: white;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .doc-item {
+            background: #f8f9ff;
+            border-radius: 8px;
+            padding: 0.8rem;
+            margin-bottom: 0.5rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="console-nav">
+        <h1>⚡ AIZAMA Console</h1>
+        <button onclick="Auth.logout()" style="background: #ff4444">로그아웃</button>
+    </div>
+
+    <div class="container">
+        <!-- API 키 -->
+        <div class="card">
+            <h2>🔑 API 키</h2>
+            <div id="api-key-display" class="api-key-box">로딩 중...</div>
+            <button onclick="generateApiKey()">새 API 키 발급</button>
+        </div>
+
+        <!-- DB 콘솔 -->
+        <div class="card">
+            <h2>🗄️ DB 콘솔</h2>
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="switchTab('read')">조회</button>
+                <button class="tab-btn" onclick="switchTab('write')">저장</button>
+                <button class="tab-btn" onclick="switchTab('delete')">삭제</button>
+            </div>
+
+            <!-- 조회 -->
+            <div id="tab-read" class="tab-content active">
+                <input type="text" id="read-collection" placeholder="컬렉션 이름 (예: posts)" />
+                <button onclick="dbRead()">조회</button>
+                <div id="read-result"></div>
+            </div>
+
+            <!-- 저장 -->
+            <div id="tab-write" class="tab-content">
+                <input type="text" id="write-collection" placeholder="컬렉션 이름" />
+                <textarea id="write-data" placeholder='JSON 데이터 (예: {"title": "안녕", "content": "반가워"})'></textarea>
+                <button onclick="dbWrite()">저장</button>
+                <p id="write-result"></p>
+            </div>
+
+            <!-- 삭제 -->
+            <div id="tab-delete" class="tab-content">
+                <input type="text" id="delete-collection" placeholder="컬렉션 이름" />
+                <input type="text" id="delete-id" placeholder="문서 ID" />
+                <button onclick="dbDelete()" style="background: #ff4444">삭제</button>
+                <p id="delete-result"></p>
+            </div>
+        </div>
+
+        <!-- 사용 예시 -->
+        <div class="card">
+            <h2>📖 사용 예시</h2>
+            <div class="api-key-box">
+// HTML에 추가<br>
+&lt;script src="https://marstaiwebstudio.github.io/school-service/aizama.js"&gt;&lt;/script&gt;<br><br>
+// 초기화<br>
+const app = initializeAizama({ apiKey: '<span id="example-key">YOUR_API_KEY</span>' });<br><br>
+// DB 저장<br>
+await app.db.set('posts', { title: '안녕' });<br><br>
+// DB 조회<br>
+const posts = await app.db.get('posts');
+            </div>
+        </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script src="aizama.js"></script>
+    <script>
+        if (!Auth.isLoggedIn()) window.location.href = 'login.html';
+
+        let aizamaApp = null;
+
+        window.onload = async () => {
+            try {
+                const data = await API.getApiKey();
+                showApiKey(data.api_key);
+            } catch (e) {
+                document.getElementById('api-key-display').textContent = 'API 키 없음 - 새로 발급해주세요';
+            }
+        };
+
+        function showApiKey(key) {
+            document.getElementById('api-key-display').textContent = key;
+            document.getElementById('example-key').textContent = key;
+            aizamaApp = initializeAizama({ apiKey: key });
+        }
+
+        async function generateApiKey() {
+            const data = await API.generateApiKey();
+            showApiKey(data.api_key);
+        }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        async function dbRead() {
+            const collection = document.getElementById('read-collection').value;
+            const docs = await aizamaApp.db.get(collection);
+            document.getElementById('read-result').innerHTML = docs.map(d => `
+                <div class="doc-item">
+                    <strong>ID: ${d.id}</strong><br>
+                    ${JSON.stringify(d.data, null, 2)}
+                </div>
+            `).join('') || '<p>데이터 없음</p>';
+        }
+
+        async function dbWrite() {
+            const collection = document.getElementById('write-collection').value;
+            const dataStr = document.getElementById('write-data').value;
+            try {
+                const data = JSON.parse(dataStr);
+                const result = await aizamaApp.db.set(collection, data);
+                document.getElementById('write-result').style.color = 'green';
+                document.getElementById('write-result').textContent = `저장 완료! ID: ${result.id}`;
+            } catch (e) {
+                document.getElementById('write-result').style.color = 'red';
+                document.getElementById('write-result').textContent = 'JSON 형식 오류 또는 저장 실패';
+            }
+        }
+
+        async function dbDelete() {
+            const collection = document.getElementById('delete-collection').value;
+            const id = document.getElementById('delete-id').value;
+            try {
+                await aizamaApp.db.delete(collection, id);
+                document.getElementById('delete-result').style.color = 'green';
+                document.getElementById('delete-result').textContent = '삭제 완료!';
+            } catch (e) {
+                document.getElementById('delete-result').style.color = 'red';
+                document.getElementById('delete-result').textContent = e.message;
+            }
+        }
+    </script>
+</body>
+</html>
