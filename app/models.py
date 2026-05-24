@@ -70,3 +70,25 @@ class Notice(db.Model):
     content = db.Column(db.Text, nullable=False)
     is_pinned = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+class ApiKey(db.Model):
+    __tablename__ = 'api_keys'
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    key = db.Column(db.String(100), unique=True, nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+class Collection(db.Model):
+    __tablename__ = 'collections'
+    id = db.Column(db.Integer, primary_key=True)
+    api_key_id = db.Column(db.Integer, db.ForeignKey('api_keys.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Document(db.Model):
+    __tablename__ = 'documents'
+    id = db.Column(db.Integer, primary_key=True)
+    collection_id = db.Column(db.Integer, db.ForeignKey('collections.id'), nullable=False)
+    doc_id = db.Column(db.String(100), nullable=False)
+    data = db.Column(db.Text, nullable=False)  # JSON 문자열로 저장
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

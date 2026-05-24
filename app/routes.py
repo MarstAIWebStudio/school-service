@@ -1,9 +1,10 @@
 from flask import Blueprint, request, jsonify
 from app import db
-from app.models import User, PointLog, Item, Purchase, ServiceRequest, WhisperLink, Notice
+from app.models import User, PointLog, Item, Purchase, ServiceRequest, WhisperLink, Notice, ApiKey, Collection, Document
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
+import json
 from datetime import datetime
 
 main = Blueprint('main', __name__)
@@ -190,12 +191,136 @@ def get_notices():
         'content': n.content, 'is_pinned': n.is_pinned,
         'created_at': n.created_at.isoformat()
     } for n in notices])
-    # 임시 admin 승격 API
-@main.route('/api/temp/make-admin/<username>', methods=['GET'])
-def make_admin(username):
-    user = User.query.filter_by(username=username).first()
-    if not user:
-        return jsonify({'error': '사용자 없음'}), 404
-    user.role = 'admin'
+# ── API 키 발급 ──
+@main.route('/api/apikey/generate', methods=['POST'])
+@jwt_required()
+def generate_api_key():
+    user_id = int(get_jwt_identity())
+    
+    # 기존 키 비활성화
+    existing = ApiKey.query.filter_by(user_id=user_id, is_active=True).first()
+    if existing:
+        existing.is_active = False
+        db.session.commit()
+
+    # 새 키 생성
+    new_key = 'AIZAMA-' + str(uuid.uuid4()).replace('-', '').upper()[:32]
+    api_key = ApiKey(user_id=user_id, key=new_key)
+    db.session.add(api_key)
     db.session.commit()
-    return jsonify({'message': f'{username} → admin 승격 완료!'})
+
+    return jsonify({'api_key': new_key})
+
+# ── API 키 조회 ──
+@main.route('/api/apikey', methods=['GET'])
+@jwt_required()
+def get_api_key():
+    user_id = int(get_jwt_identity())
+    key = ApiKey.query.filter_by(user_id=user_id, is_active=True).first()
+    if not key:
+        return jsonify({'error': 'API 키 없음'}), 404
+    return jsonify({'api_key': key.key})
+import json
+
+# ── API 키 인증 헬퍼 ──
+def get_api_key_from_header():
+    api_key = request.headers.get('X-API-Key')
+    if not api_key:
+        return None
+    return ApiKey.query.filter_by(key=api_key, is_active=True).first()
+
+# ── 컬렉션 전체 조회 ──
+@main.route('/api/db/<collection_name>', methods=['GET'])
+def db_get(collection_name):
+    key = get_api_key_from_header()
+    if not key:
+        return jsonify({'error': 'API 키 없음'}), 401
+
+    collection = Collection.query.filter_by(
+        name=collection_name, api_key_id=key.id
+    ).first()
+
+    if not collection:
+        return jsonify([])
+
+    docs = Document.query.filter_by(collection_id=collection.id).all()
+    return jsonify([{
+        'id': d.doc_id,
+        'data': json.loads(d.data),
+        'created_at': d.created_at.isoformat()
+    } for d in docs])
+
+# ── 문서 저장 ──
+@main.route('/api/db/<collection_name>', methods=['POST'])
+def db_set(collection_name):
+    key = get_api_key_from_header()
+    if not key:
+        return jsonify({'error': 'API 키 없음'}), 401
+
+    data = request.json
+
+    # 컬렉션 없으면 자동 생성
+    collection = Collection.query.filter_by(
+        name=collection_name, api_key_id=key.id
+    ).first()
+    if not collection:
+        collection = Collection(name=collection_name, api_key_id=key.id)
+        db.session.add(collection)
+        db.session.flush()
+
+    doc_id = str(uuid.uuid4())[:8].upper()
+    doc = Document(
+        collection_id=collection.id,
+        doc_id=doc_id,
+        data=json.dumps(data, ensure_ascii=False)
+    )
+    db.session.add(doc)
+    db.session.commit()
+
+    return jsonify({'id': doc_id, 'data': data}), 201
+
+# ── 문서 수정 ──
+@main.route('/api/db/<collection_name>/<doc_id>', methods=['PUT'])
+def db_update(collection_name, doc_id):
+    key = get_api_key_from_header()
+    if not key:
+        return jsonify({'error': 'API 키 없음'}), 401
+
+    collection = Collection.query.filter_by(
+        name=collection_name, api_key_id=key.id
+    ).first()
+    if not collection:
+        return jsonify({'error': '컬렉션 없음'}), 404
+
+    doc = Document.query.filter_by(
+        collection_id=collection.id, doc_id=doc_id
+    ).first()
+    if not doc:
+        return jsonify({'error': '문서 없음'}), 404
+
+    doc.data = json.dumps(request.json, ensure_ascii=False)
+    db.session.commit()
+    return jsonify({'id': doc_id, 'data': request.json})
+
+# ── 문서 삭제 ──
+@main.route('/api/db/<collection_name>/<doc_id>', methods=['DELETE'])
+def db_delete(collection_name, doc_id):
+    key = get_api_key_from_header()
+    if not key:
+        return jsonify({'error': 'API 키 없음'}), 401
+
+    collection = Collection.query.filter_by(
+        name=collection_name, api_key_id=key.id
+    ).first()
+    if not collection:
+        return jsonify({'error': '컬렉션 없음'}), 404
+
+    doc = Document.query.filter_by(
+        collection_id=collection.id, doc_id=doc_id
+    ).first()
+    if not doc:
+        return jsonify({'error': '문서 없음'}), 404
+
+    db.session.delete(doc)
+    db.session.commit()
+    return jsonify({'message': '삭제 완료'})
