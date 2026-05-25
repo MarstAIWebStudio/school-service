@@ -3,194 +3,339 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AIZAMA Console</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Marst DataBase</title>
     <style>
-        .console-nav {
-            background: #111;
-            color: white;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #111; color: #eee; display: flex; flex-direction: column; height: 100vh; }
+        
+        nav {
+            background: #1a1a2e;
             padding: 1rem 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-bottom: 1px solid #333;
         }
-        .console-nav h1 {
-            color: #00ff88;
-            font-size: 1.5rem;
-            margin: 0;
-        }
-        .api-key-box {
-            background: #1e1e1e;
-            color: #00ff88;
-            padding: 1rem;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 0.9rem;
-            word-break: break-all;
-        }
-        .tab-buttons {
+        nav h1 { color: #00ff88; font-size: 1.3rem; }
+        nav button { background: #ff4444; color: white; border: none; padding: 0.4rem 1rem; border-radius: 6px; cursor: pointer; }
+
+        .main {
             display: flex;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
+            flex: 1;
+            overflow: hidden;
         }
-        .tab-btn {
-            background: #f0f2f5;
-            color: #333;
+
+        /* 왼쪽 사이드바 */
+        .sidebar {
+            width: 250px;
+            background: #1a1a1a;
+            border-right: 1px solid #333;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-header {
+            padding: 1rem;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .sidebar-header span { color: #888; font-size: 0.85rem; }
+        .add-btn {
+            background: #00ff88;
+            color: #111;
             border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
+            padding: 0.3rem 0.7rem;
+            border-radius: 6px;
             cursor: pointer;
-        }
-        .tab-btn.active {
-            background: #4f46e5;
-            color: white;
-        }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-        .doc-item {
-            background: #f8f9ff;
-            border-radius: 8px;
-            padding: 0.8rem;
-            margin-bottom: 0.5rem;
-            font-family: monospace;
+            font-weight: bold;
             font-size: 0.85rem;
         }
+        .collection-list { flex: 1; overflow-y: auto; }
+        .collection-item {
+            padding: 0.8rem 1rem;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            transition: all 0.2s;
+            font-size: 0.9rem;
+        }
+        .collection-item:hover { background: #222; }
+        .collection-item.active { background: #222; border-left-color: #00ff88; color: #00ff88; }
+
+        /* 오른쪽 콘텐츠 */
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .content-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .content-header h2 { font-size: 1rem; color: #00ff88; }
+        .add-doc-btn {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 0.4rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .doc-list { flex: 1; overflow-y: auto; padding: 1rem; }
+        .doc-item {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+        .doc-item:hover { border-color: #555; }
+        .doc-id { color: #00ff88; font-size: 0.75rem; margin-bottom: 0.5rem; font-family: monospace; }
+        .doc-data { font-family: monospace; font-size: 0.85rem; color: #ccc; white-space: pre-wrap; }
+        .doc-delete {
+            background: none;
+            border: 1px solid #ff4444;
+            color: #ff4444;
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+            margin-left: 1rem;
+        }
+
+        /* 모달 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal {
+            background: #1e1e1e;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 1.5rem;
+            width: 400px;
+        }
+        .modal h3 { color: #00ff88; margin-bottom: 1rem; }
+        .modal input, .modal textarea {
+            width: 100%;
+            background: #111;
+            border: 1px solid #444;
+            color: #eee;
+            padding: 0.7rem;
+            border-radius: 6px;
+            margin-bottom: 0.8rem;
+            font-size: 0.9rem;
+        }
+        .modal textarea { height: 150px; font-family: monospace; resize: vertical; }
+        .modal-btns { display: flex; gap: 0.5rem; justify-content: flex-end; }
+        .modal-btns button { padding: 0.5rem 1rem; border-radius: 6px; border: none; cursor: pointer; }
+        .btn-cancel { background: #333; color: #eee; }
+        .btn-save { background: #00ff88; color: #111; font-weight: bold; }
+
+        .empty { color: #555; text-align: center; padding: 3rem; }
+        .api-key-bar {
+            background: #1a1a1a;
+            border-top: 1px solid #333;
+            padding: 0.7rem 1.5rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #555;
+        }
+        .api-key-bar span { color: #00ff88; }
     </style>
 </head>
 <body>
-    <div class="console-nav">
-        <h1>⚡ AIZAMA Console</h1>
-        <button onclick="Auth.logout()" style="background: #ff4444">로그아웃</button>
-    </div>
 
-    <div class="container">
-        <!-- API 키 -->
-        <div class="card">
-            <h2>🔑 API 키</h2>
-            <div id="api-key-display" class="api-key-box">로딩 중...</div>
-            <button onclick="generateApiKey()">새 API 키 발급</button>
+<nav>
+    <h1>⚡ Marst DataBase</h1>
+    <button onclick="logout()">로그아웃</button>
+</nav>
+
+<div class="main">
+    <!-- 사이드바 -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <span>컬렉션</span>
+            <button class="add-btn" onclick="showAddCollection()">+ 추가</button>
         </div>
-
-        <!-- DB 콘솔 -->
-        <div class="card">
-            <h2>🗄️ DB 콘솔</h2>
-            <div class="tab-buttons">
-                <button class="tab-btn active" onclick="switchTab('read')">조회</button>
-                <button class="tab-btn" onclick="switchTab('write')">저장</button>
-                <button class="tab-btn" onclick="switchTab('delete')">삭제</button>
-            </div>
-
-            <!-- 조회 -->
-            <div id="tab-read" class="tab-content active">
-                <input type="text" id="read-collection" placeholder="컬렉션 이름 (예: posts)" />
-                <button onclick="dbRead()">조회</button>
-                <div id="read-result"></div>
-            </div>
-
-            <!-- 저장 -->
-            <div id="tab-write" class="tab-content">
-                <input type="text" id="write-collection" placeholder="컬렉션 이름" />
-                <textarea id="write-data" placeholder='JSON 데이터 (예: {"title": "안녕", "content": "반가워"})'></textarea>
-                <button onclick="dbWrite()">저장</button>
-                <p id="write-result"></p>
-            </div>
-
-            <!-- 삭제 -->
-            <div id="tab-delete" class="tab-content">
-                <input type="text" id="delete-collection" placeholder="컬렉션 이름" />
-                <input type="text" id="delete-id" placeholder="문서 ID" />
-                <button onclick="dbDelete()" style="background: #ff4444">삭제</button>
-                <p id="delete-result"></p>
-            </div>
-        </div>
-
-        <!-- 사용 예시 -->
-        <div class="card">
-            <h2>📖 사용 예시</h2>
-            <div class="api-key-box">
-// HTML에 추가<br>
-&lt;script src="https://marstaiwebstudio.github.io/school-service/aizama.js"&gt;&lt;/script&gt;<br><br>
-// 초기화<br>
-const app = initializeAizama({ apiKey: '<span id="example-key">YOUR_API_KEY</span>' });<br><br>
-// DB 저장<br>
-await app.db.set('posts', { title: '안녕' });<br><br>
-// DB 조회<br>
-const posts = await app.db.get('posts');
-            </div>
+        <div class="collection-list" id="collection-list">
+            <div class="empty">로딩 중...</div>
         </div>
     </div>
 
-    <script src="api.js"></script>
-    <script src="aizama.js"></script>
-    <script>
-        if (!Auth.isLoggedIn()) window.location.href = 'login.html';
+    <!-- 콘텐츠 -->
+    <div class="content">
+        <div class="content-header">
+            <h2 id="current-collection">컬렉션을 선택하세요</h2>
+            <button class="add-doc-btn" onclick="showAddDoc()" id="add-doc-btn" style="display:none">+ 문서 추가</button>
+        </div>
+        <div class="doc-list" id="doc-list">
+            <div class="empty">왼쪽에서 컬렉션을 선택하세요</div>
+        </div>
+    </div>
+</div>
 
-        let aizamaApp = null;
+<div class="api-key-bar">
+    API Key: <span id="api-key-display">로딩 중...</span>
+</div>
 
-        window.onload = async () => {
-            try {
-                const data = await API.getApiKey();
-                showApiKey(data.api_key);
-            } catch (e) {
-                document.getElementById('api-key-display').textContent = 'API 키 없음 - 새로 발급해주세요';
-            }
-        };
+<!-- 컬렉션 추가 모달 -->
+<div class="modal-overlay" id="collection-modal">
+    <div class="modal">
+        <h3>새 컬렉션</h3>
+        <input type="text" id="new-collection-name" placeholder="컬렉션 이름 (예: posts)" />
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="hideModal('collection-modal')">취소</button>
+            <button class="btn-save" onclick="addCollection()">생성</button>
+        </div>
+    </div>
+</div>
 
-        function showApiKey(key) {
-            document.getElementById('api-key-display').textContent = key;
-            document.getElementById('example-key').textContent = key;
-            aizamaApp = initializeAizama({ apiKey: key });
-        }
+<!-- 문서 추가 모달 -->
+<div class="modal-overlay" id="doc-modal">
+    <div class="modal">
+        <h3>새 문서</h3>
+        <textarea id="new-doc-data" placeholder='{"key": "value"}'></textarea>
+        <div class="modal-btns">
+            <button class="btn-cancel" onclick="hideModal('doc-modal')">취소</button>
+            <button class="btn-save" onclick="addDoc()">저장</button>
+        </div>
+    </div>
+</div>
 
-        async function generateApiKey() {
+<script src="api.js"></script>
+<script src="aizama.js"></script>
+<script>
+    if (!Auth.isLoggedIn()) window.location.href = 'login.html';
+
+    let aizamaApp = null;
+    let currentCollection = null;
+
+    window.onload = async () => {
+        // API 키 로드
+        try {
+            const data = await API.getApiKey();
+            document.getElementById('api-key-display').textContent = data.api_key;
+            aizamaApp = initializeAizama({ apiKey: data.api_key });
+            loadCollections();
+        } catch (e) {
+            // API 키 없으면 자동 발급
             const data = await API.generateApiKey();
-            showApiKey(data.api_key);
+            document.getElementById('api-key-display').textContent = data.api_key;
+            aizamaApp = initializeAizama({ apiKey: data.api_key });
+            loadCollections();
+        }
+    };
+
+    async function loadCollections() {
+        const res = await fetch(`https://school-service-v23r.onrender.com/api/db`, {
+            headers: { 'X-API-Key': aizamaApp.apiKey }
+        });
+        const collections = await res.json();
+
+        const list = document.getElementById('collection-list');
+        if (collections.length === 0) {
+            list.innerHTML = '<div class="empty">컬렉션 없음</div>';
+            return;
         }
 
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById(`tab-${tab}`).classList.add('active');
-            event.target.classList.add('active');
+        list.innerHTML = collections.map(c => `
+            <div class="collection-item" onclick="selectCollection('${c.name}')" id="col-${c.name}">
+                📁 ${c.name}
+            </div>
+        `).join('');
+    }
+
+    async function selectCollection(name) {
+        currentCollection = name;
+        document.querySelectorAll('.collection-item').forEach(el => el.classList.remove('active'));
+        document.getElementById(`col-${name}`)?.classList.add('active');
+        document.getElementById('current-collection').textContent = `📁 ${name}`;
+        document.getElementById('add-doc-btn').style.display = 'block';
+        loadDocs(name);
+    }
+
+    async function loadDocs(name) {
+        const docs = await aizamaApp.db.get(name);
+        const list = document.getElementById('doc-list');
+
+        if (docs.length === 0) {
+            list.innerHTML = '<div class="empty">문서가 없습니다</div>';
+            return;
         }
 
-        async function dbRead() {
-            const collection = document.getElementById('read-collection').value;
-            const docs = await aizamaApp.db.get(collection);
-            document.getElementById('read-result').innerHTML = docs.map(d => `
-                <div class="doc-item">
-                    <strong>ID: ${d.id}</strong><br>
-                    ${JSON.stringify(d.data, null, 2)}
+        list.innerHTML = docs.map(d => `
+            <div class="doc-item">
+                <div>
+                    <div class="doc-id">ID: ${d.id}</div>
+                    <div class="doc-data">${JSON.stringify(d.data, null, 2)}</div>
                 </div>
-            `).join('') || '<p>데이터 없음</p>';
-        }
+                <button class="doc-delete" onclick="deleteDoc('${d.id}')">삭제</button>
+            </div>
+        `).join('');
+    }
 
-        async function dbWrite() {
-            const collection = document.getElementById('write-collection').value;
-            const dataStr = document.getElementById('write-data').value;
-            try {
-                const data = JSON.parse(dataStr);
-                const result = await aizamaApp.db.set(collection, data);
-                document.getElementById('write-result').style.color = 'green';
-                document.getElementById('write-result').textContent = `저장 완료! ID: ${result.id}`;
-            } catch (e) {
-                document.getElementById('write-result').style.color = 'red';
-                document.getElementById('write-result').textContent = 'JSON 형식 오류 또는 저장 실패';
-            }
-        }
+    async function deleteDoc(id) {
+        if (!confirm('삭제할까요?')) return;
+        await aizamaApp.db.delete(currentCollection, id);
+        loadDocs(currentCollection);
+    }
 
-        async function dbDelete() {
-            const collection = document.getElementById('delete-collection').value;
-            const id = document.getElementById('delete-id').value;
-            try {
-                await aizamaApp.db.delete(collection, id);
-                document.getElementById('delete-result').style.color = 'green';
-                document.getElementById('delete-result').textContent = '삭제 완료!';
-            } catch (e) {
-                document.getElementById('delete-result').style.color = 'red';
-                document.getElementById('delete-result').textContent = e.message;
-            }
+    function showAddCollection() {
+        document.getElementById('collection-modal').classList.add('show');
+    }
+
+    async function addCollection() {
+        const name = document.getElementById('new-collection-name').value.trim();
+        if (!name) return;
+        // 빈 문서 하나 넣어서 컬렉션 생성
+        await aizamaApp.db.set(name, { _init: true });
+        hideModal('collection-modal');
+        await loadCollections();
+        selectCollection(name);
+    }
+
+    function showAddDoc() {
+        document.getElementById('doc-modal').classList.add('show');
+    }
+
+    async function addDoc() {
+        const dataStr = document.getElementById('new-doc-data').value;
+        try {
+            const data = JSON.parse(dataStr);
+            await aizamaApp.db.set(currentCollection, data);
+            hideModal('doc-modal');
+            loadDocs(currentCollection);
+        } catch (e) {
+            alert('JSON 형식이 올바르지 않아요!');
         }
-    </script>
+    }
+
+    function hideModal(id) {
+        document.getElementById(id).classList.remove('show');
+    }
+
+    function logout() {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.html';
+    }
+</script>
 </body>
 </html>

@@ -324,3 +324,15 @@ def db_delete(collection_name, doc_id):
     db.session.delete(doc)
     db.session.commit()
     return jsonify({'message': '삭제 완료'})
+# ── 컬렉션 목록 조회 ──
+@main.route('/api/db', methods=['GET'])
+def db_get_collections():
+    key = get_api_key_from_header()
+    if not key:
+        return jsonify({'error': 'API 키 없음'}), 401
+
+    collections = Collection.query.filter_by(api_key_id=key.id).all()
+    return jsonify([{
+        'name': c.name,
+        'id': c.id
+    } for c in collections])
